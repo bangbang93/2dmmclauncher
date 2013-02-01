@@ -29,6 +29,8 @@ namespace _2dmmclauncher
             {
                 StreamReader verp = new StreamReader(verPath);
                 javaVersion.Text = verp.ReadToEnd();
+                verp.Close();
+                verp.Dispose();
             }
             catch
             {
