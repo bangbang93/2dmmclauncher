@@ -41,7 +41,6 @@ namespace _2dmmclauncher
                         Process un7z = new Process();
                         un7z.StartInfo.FileName = "unpakcer.exe";
                         un7z.StartInfo.Arguments = "x -y 2dmmc.dat";
-                        //un7z.Exited += new EventHandler(un7z_Exited);
                         un7z.Start();
                         un7z.WaitForExit();
                         File.Delete("unpakcer.exe");
@@ -59,7 +58,6 @@ namespace _2dmmclauncher
             }
         }
         downloader game = new downloader(@"http://image.bangbang93.com/2dmmc.7z");
-        //downloader game = new downloader(@"file:\\E:\新建文件夹\2dmmc1.7z");
         public string stat = "unfinish";
 
         WebClient downl = new WebClient();
@@ -102,7 +100,7 @@ namespace _2dmmclauncher
             WebClient cmd5 = new WebClient();
             if (cmd5.DownloadString("http://2dmmc.bangbang93.com/cmd5.txt").Substring(0,32)!=GetMD5HashFromFile("2dmmc.dat").ToUpper())
             {
-                MessageBox.Show("下载错误,请重试" + cmd5.DownloadString("http://2dmmc.bangbang93.com/cmd5.txt") + "\n" + GetMD5HashFromFile("2dmmc.dat").ToUpper());
+                MessageBox.Show("下载错误,请重试\n" + cmd5.DownloadString("http://2dmmc.bangbang93.com/cmd5.txt") + "\n" + GetMD5HashFromFile("2dmmc.dat").ToUpper());
                 Environment.Exit(0);
             }
             WebClient d7z=new WebClient();

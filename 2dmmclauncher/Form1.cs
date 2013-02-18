@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Net;
 using System.Threading;
 using System.Management;
+using System.Xml;
 
 
 namespace _2dmmclauncher
@@ -24,6 +25,7 @@ namespace _2dmmclauncher
         public string playername;
         public string javaxmx;
         public string javaw;
+        public string cfgfile = "2dmmccfg.xml";
         public Form1()
         {
             InitializeComponent();
@@ -55,9 +57,35 @@ namespace _2dmmclauncher
 
         private void erdmmc(string PlayerName,string  JavaXmx,string javaw)
         {
-            
-            launcher.StartInfo.UseShellExecute = false;
+
             launcher.StartInfo.FileName = javaw;
+            while (!File.Exists(launcher.StartInfo.FileName))
+            {
+                if (MessageBox.Show("javaw.exe路径错误", "无法启动", MessageBoxButtons.OKCancel, MessageBoxIcon.Error) == DialogResult.OK)
+                {
+                    OpenFileDialog javawp = new OpenFileDialog();
+                    javawp.Multiselect = false;
+                    javawp.Title = "请选择javaw.exe";
+                    javawp.Filter = "javaw.exe|javaw.exe";
+                    if (javawp.ShowDialog() == DialogResult.OK)
+                    {
+                        javaw = javawp.FileName;
+                        launcher.StartInfo.FileName = javaw;
+                        XmlDocument cfg=new XmlDocument();
+                        cfg.Load(cfgfile);
+                        XmlElement root = (XmlElement)cfg.SelectSingleNode("edmmc");
+                        XmlElement javainfo = (XmlElement )root.SelectSingleNode("JavaInfo");
+                        javainfo.SetAttribute("javaw", javaw);
+                        cfg.Save(cfgfile);
+                    }
+                }
+                else
+                {
+                    Environment.Exit(0);
+                }
+
+            }
+            launcher.StartInfo.UseShellExecute = false;
             launcher.StartInfo.WorkingDirectory = Environment.CurrentDirectory+"\\.minecraft\\bin";
             Environment.SetEnvironmentVariable("APPDATA", Environment.CurrentDirectory);
             launcher.StartInfo.Arguments = "-Xincgc -Xmx" + JavaXmx + "M -XX:PermSize=64m -XX:MaxPermSize=128m " + "-Dsun.java2d.noddraw=true -Dsun.java2d.pmoffscreen=false -Dsun.java2d.d3d=false -Dsun.java2d.opengl=false -cp \"" + Environment.CurrentDirectory + "\\.minecraft\\bin\\minecraft.jar;" + Environment.CurrentDirectory + "\\.minecraft\\bin\\lwjgl.jar;" + Environment.CurrentDirectory + "\\.minecraft\\bin\\lwjgl_util.jar;" + Environment.CurrentDirectory + "\\.minecraft\\bin\\jinput.jar\" -Djava.library.path=\"" + Environment.CurrentDirectory + "\\.minecraft\\bin\\natives\" net.minecraft.client.Minecraft " + PlayerName;
@@ -99,18 +127,58 @@ namespace _2dmmclauncher
 
         private void loadconfig()
         {
+            #region 旧的配置文件更新
             if (File.Exists("2dmmclauncher.cfg"))
             {
-                StreamReader cfg = new StreamReader("2dmmclauncher.cfg");
-                playername = cfg.ReadLine();
-                javaxmx = cfg.ReadLine();
-                javaw = cfg.ReadLine();
+                StreamReader ocfg = new StreamReader("2dmmclauncher.cfg");
+                string oname = ocfg.ReadLine();
+                string ojavaxmx = ocfg.ReadLine();
+                string ojavaw = ocfg.ReadLine();
+                XmlDocument cfg = new XmlDocument();
+                XmlDeclaration xmldecl;
+                xmldecl = cfg.CreateXmlDeclaration("1.0", "utf-8", null);
+                cfg.AppendChild(xmldecl);
+                XmlElement cfgvalue = cfg.CreateElement("edmmc");
+                cfg.AppendChild(cfgvalue);
+                XmlNode cfgroot = cfg.SelectSingleNode("edmmc");
+                XmlElement player = cfg.CreateElement("PlayerInfo");
+                player.SetAttribute("playername", oname);
+                cfgvalue.AppendChild(player);
+                XmlElement JavaInfo = cfg.CreateElement("JavaInfo");
+                JavaInfo.SetAttribute("javaxmx", ojavaxmx);
+                JavaInfo.SetAttribute("javaw", ojavaw);
+                cfgvalue.AppendChild(JavaInfo);
+                cfg.AppendChild(cfgvalue);
+                cfg.Save(cfgfile);
+                ocfg.Close();
+                File.Delete("2dmmclauncher.cfg");
+
+            }
+            #endregion
+            if (File.Exists(cfgfile))
+            {
+                XmlDocument cfg = new XmlDocument();
+                cfg.Load(cfgfile);
+                XmlNode cfgroot = cfg.SelectSingleNode("edmmc");
+                XmlElement playerinfo = (XmlElement )cfgroot.SelectSingleNode("PlayerInfo");
+                playername = playerinfo.Attributes["playername"].Value;
+                XmlElement javainfo = (XmlElement)cfgroot.SelectSingleNode("JavaInfo");
+                javaw = javainfo.Attributes["javaw"].Value;
+                javaxmx=javainfo.Attributes["javaxmx"].Value;
             }
             else
             {
-                StreamWriter cfg = new StreamWriter("2dmmclauncher.cfg");
                 playername = Interaction.InputBox("请输入用户名(仅影响单机模式，用于单机模式获取皮肤)", "用户名", "Player");
-                cfg.WriteLine(playername);
+                XmlDocument cfg=new XmlDocument();
+                XmlDeclaration xmldecl;
+                xmldecl = cfg.CreateXmlDeclaration("1.0", "utf-8",null);
+                cfg.AppendChild(xmldecl);
+                XmlElement cfgvalue = cfg.CreateElement("edmmc");
+                cfg.AppendChild(cfgvalue);
+                XmlNode cfgroot = cfg.SelectSingleNode("edmmc");
+                XmlElement player = cfg.CreateElement("PlayerInfo");
+                player.SetAttribute("playername", playername);
+                cfgvalue.AppendChild(player);
                 double capacity = 0.0;
                 ManagementClass cimobject1 = new ManagementClass("Win32_PhysicalMemory");
                 ManagementObjectCollection moc1 = cimobject1.GetInstances();
@@ -125,9 +193,9 @@ namespace _2dmmclauncher
                 {
                     qmem = 512;
                 }
-                //MessageBox.Show((MemInfo.dwAvailPhys / 4096 / 1024).ToString());
                 javaxmx = qmem.ToString ();
-                cfg.WriteLine(javaxmx);
+                XmlElement JavaInfo = cfg.CreateElement("JavaInfo");
+                JavaInfo.SetAttribute("javaxmx", javaxmx);
                 {
                     RegistryKey lm = Registry.LocalMachine;
                     RegistryKey sf = lm.OpenSubKey("SOFTWARE");
@@ -168,8 +236,10 @@ namespace _2dmmclauncher
                     
 
                 }
-                cfg.WriteLine(javaw);
-                cfg.Close();
+                JavaInfo.SetAttribute("javaw", javaw);
+                cfgvalue.AppendChild(JavaInfo);
+                cfg.AppendChild(cfgvalue);
+                cfg.Save(cfgfile);
             }
 
         }
@@ -306,21 +376,7 @@ namespace _2dmmclauncher
         private void timer1_Tick(object sender, EventArgs e)
         {
             string f = @".minecraft\ForgeModLoader-0.log";
-            DateTime lastct = DateTime.MinValue;
-            foreach (string F in Directory.GetFiles(".minecraft", "ForgeModLoader*.log", SearchOption.TopDirectoryOnly))
-            {
-                DateTime dt = File.GetLastWriteTime(F);
-                if (dt.Day != DateTime.Now.Day)
-                {
-                    continue;
-                }
-                if (dt > lastct)
-                {
-                    f = F;
-                    lastct = dt;
-                }
-            }
-            System.IO.FileStream MClog = new System.IO.FileStream(f, System.IO.FileMode.Open, System.IO.FileAccess.Read, FileShare.ReadWrite);
+            FileStream MClog = new System.IO.FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             StreamReader mclog = new StreamReader(MClog, Encoding.Default);
             string log = mclog.ReadToEnd();
             if (log.Contains("SEVERE"))
